@@ -2,21 +2,21 @@
 using System;
 using System.IO;
 using System.Net;
-using System.Threading.Tasks;
 
 namespace SteamTokenGenerator
 {
 	class SteamTokenGenerator
 	{
-		public static string GetKey()
+		static readonly string MainPath = Environment.GetFolderPath( Environment.SpecialFolder.MyDocuments ) + @"\SteamTokenGenerator";
+
+		static string GetKey()
 		{
-			string Path = @"\\SERVER-PC\Users\starw\Documents\key.txt";
-			string ReadKey = File.ReadAllText( Path );
+			string readkey = File.ReadAllText( MainPath + @"\key.txt" );
 			Console.WriteLine( "\nReading user key..." );
-			return ReadKey;
+			return readkey;
 		}
 
-		public static string GetJSON()
+		static string GetJSON()
 		{
 			string URL = "https://api.steampowered.com/IGameServersService/GetAccountList/v1/?key=" + GetKey();
 			string response;
@@ -33,67 +33,52 @@ namespace SteamTokenGenerator
 			return response;
 		}
 
-		public static void ParseJSON( string json )
+		static void WriteKey( string token )
+		{
+			Console.WriteLine( "\nWriting tokens to file..." );
+			File.WriteAllText( MainPath + @"\token.txt", token );
+		}
+
+		static void CheckToken()
 		{
 			Console.WriteLine( "\nParsing JSON..." );
-			dynamic newjson = JObject.Parse( json );
+			dynamic newjson = JObject.Parse( GetJSON() );
 			dynamic servers = newjson.response.servers;
 			bool FoundUsedTokens = false;
 			string FoundMessage;
 			string Token = servers[0].login_token;
-			Console.WriteLine( "\nSearching for used tokens..." );
+			Console.WriteLine( "\nSearching for old tokens..." );
+			int count = 0;
 			foreach ( dynamic token in servers )
 			{
-				if ( token.rt_last_logon != 0 )
+				if ( token.is_expired )
 				{
-					string URL = "https://api.steampowered.com/IGameServersService/DeleteAccount/v1/?key=" + GetKey() + "&steamid=" + token.steamid;
-					WebRequest tokenRequest = WebRequest.Create( URL );
-					tokenRequest.Method = "POST";
-					tokenRequest.ContentType = "application/x-www-form-urlencoded";
-					tokenRequest.GetResponse();
+					string deleteurl = "https://api.steampowered.com/IGameServersService/DeleteAccount/v1/?key=" + GetKey() + "&steamid=" + token.steamid;
+					WebRequest deleterequest = WebRequest.Create( deleteurl );
+					deleterequest.Method = "POST";
+					deleterequest.ContentType = "application/x-www-form-urlencoded";
+					deleterequest.GetResponse();
 					FoundUsedTokens = true;
+
+					Console.WriteLine( "\nCreating new token..." );
+					string createurl = "https://api.steampowered.com/IGameServersService/CreateAccount/v1/?key=" + GetKey() + "&appid=4000&memo=AutoToken" + count;
+					WebRequest createrequest = WebRequest.Create( createurl );
+					createrequest.Method = "POST";
+					createrequest.ContentType = "application/x-www-form-urlencoded";
+					createrequest.GetResponse();
 				}
+				count++;
 			}
-			FoundMessage = FoundUsedTokens ? "Found used tokens. Deleting..." : "No used tokens found.";
+			FoundMessage = FoundUsedTokens ? "Refreshing old tokens..." : "No old tokens found.";
 			Console.WriteLine( FoundMessage );
 			WriteKey( Token );
-		}
-
-		public static void WriteKey( string token )
-		{
-			string[] Paths = {
-				@"\\SERVER-PC\lambda_cityrp",
-				@"\\SERVER-PC\gmodserver",
-				@"\\SERVER-PC\lambdarp",
-				@"\\SERVER-PC\lambda_various"
-			};
-			Console.WriteLine( "\nWriting tokens to file..." );
-			foreach ( string path in Paths )
-			{
-				File.WriteAllText( path + @"\token.txt", token );
-			}
-		}
-
-		public static void CreateJSON()
-		{
-			Console.WriteLine( "\nCreating new token..." );
-			Random rand = new Random();
-			string URL = "https://api.steampowered.com/IGameServersService/CreateAccount/v1/?key=" + GetKey() + "&appid=4000&memo=AutoToken" + rand.Next( 1, 1001 );
-			WebRequest tokenRequest = WebRequest.Create( URL );
-			tokenRequest.Method = "POST";
-			tokenRequest.ContentType = "application/x-www-form-urlencoded";
-			tokenRequest.GetResponse();
-			Console.WriteLine( "\nGiving Steam a few seconds to sync..." );
-			Task.Delay( 3000 ).Wait();
-			ParseJSON( GetJSON() );
 		}
 
 		static void Main( string[] args )
 		{
 			Console.WriteLine( "\nInitializing..." );
-			CreateJSON();
-			Console.WriteLine( "\nProcess finished. Press any key to continue..." );
-			Console.ReadKey();
+			CheckToken();
+			Console.WriteLine( "\nProcess finished." );
 		}
 	}
 }
