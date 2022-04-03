@@ -1,2 +1,2 @@
 # Steam Token Generator
- Generates a new Steam server token if an expired one is detected. Requires .NET 6. Web API key must be stored at C:/Users/[username]/Documents/SteamTokenGenerator/key.txt. The generated token will be output to the same directory in a file named token.txt.
+ Generates a new Steam server token for each expired token that is detected. Useful for people who host their own servers occasionally and want their server in the public list, but do not host frequently enough to keep the tokens from expiring. Requires .NET 6. Two arguments must be provided: Steam app id and web API key. The generated token(s) will be output to C:/Users/[username]/Documents/SteamTokenGenerator/AutoToken[appid][count].txt.
