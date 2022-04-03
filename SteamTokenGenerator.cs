@@ -42,16 +42,14 @@ namespace SteamTokenGenerator
 		static void CheckToken()
 		{
 			Console.WriteLine( "\nParsing JSON..." );
-			dynamic newjson = JObject.Parse( GetJSON() );
-			dynamic servers = newjson.response.servers;
+			dynamic jsonlist = JObject.Parse( GetJSON() );
+			dynamic servers = jsonlist.response.servers;
 			bool FoundUsedTokens = false;
-			string FoundMessage;
-			string Token = servers[0].login_token;
 			Console.WriteLine( "\nSearching for old tokens..." );
 			int count = 0;
 			foreach ( dynamic token in servers )
 			{
-				if ( token.is_expired )
+				if ( token.is_expired == true )
 				{
 					string deleteurl = "https://api.steampowered.com/IGameServersService/DeleteAccount/v1/?key=" + GetKey() + "&steamid=" + token.steamid;
 					WebRequest deleterequest = WebRequest.Create( deleteurl );
@@ -65,13 +63,15 @@ namespace SteamTokenGenerator
 					WebRequest createrequest = WebRequest.Create( createurl );
 					createrequest.Method = "POST";
 					createrequest.ContentType = "application/x-www-form-urlencoded";
-					createrequest.GetResponse();
+					
+					dynamic newjson = JObject.Parse( GetJSON() );
+					dynamic newservers = newjson.response.servers;
+					string tokenstr = servers[0].login_token;
+					WriteKey( tokenstr );
 				}
 				count++;
 			}
-			FoundMessage = FoundUsedTokens ? "Refreshing old tokens..." : "No old tokens found.";
-			Console.WriteLine( FoundMessage );
-			WriteKey( Token );
+			Console.WriteLine( FoundUsedTokens ? "\nRefreshing old tokens..." : "\nNo old tokens found." );
 		}
 
 		static void Main( string[] args )
